@@ -60,9 +60,36 @@ function connectionWithDatabase() {
                 console.log(error);
                 return;
             }
+            // try {
+            //     const result = await sqlInjectionEg("vchawla7000@gmail.com", `DROP TABLE "public"."users"`);
+            //     console.log("table is deleted");
+            // } catch (error) {
+            //     console.log(error);
+            // }
+            try {
+                const result = yield userAddressTable();
+                console.log("finally");
+            }
+            catch (error) {
+                console.log(error);
+                return;
+            }
+            try {
+                const user = yield getUserOnEmail("vchawla7000@gmail.com");
+                if (!user.rows.length) {
+                    console.log("now user exist with this email");
+                    return;
+                }
+                const final = yield addAddressOfUser(user.rows[0].id, "ASR", "IN", 143001, "Batala road");
+                console.log("added address");
+            }
+            catch (error) {
+                console.log(error);
+            }
         }
         catch (error) {
             console.log("error connecting with database");
+            return;
         }
     });
 }
@@ -129,3 +156,62 @@ function getUserOnEmail(email) {
         }
     });
 }
+function sqlInjectionEg(email, userinput) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const result = yield client.query(`SELECT * FROM users WHERE email = '${email}'; ${userinput}`);
+            console.log("all data is deleted");
+        }
+        catch (error) {
+            console.log("error in sql injection");
+            throw error;
+        }
+    });
+}
+function userAddressTable() {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            // this is the syntax for creating the query at the end we are sending SQL Commands to the postgress database server
+            const result = yield client.query(`
+            CREATE TABLE addresses (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                city VARCHAR(100) NOT NULL,
+                country VARCHAR(100) NOT NULL,
+                street VARCHAR(100) NOT NULL,
+                pincode INTEGER NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )    
+        `);
+            // now the address table will only add new row if there is valid user_id send is present in the users table ( adding strictness when adding the data to the database )
+            console.log(result);
+            console.log("successfully created address table");
+            return result;
+        }
+        catch (error) {
+            console.log("error in creating address table");
+            throw error;
+        }
+    });
+}
+function addAddressOfUser(user_id, city, country, pincode, street) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const query = "INSERT INTO addresses (user_id, city, country, pincode, street) VALUES ($1, $2, $3, $4, $5)";
+            const values = [user_id, city, country, pincode, street];
+            const result = yield client.query(query, values);
+            console.log("added address for particular user successfully");
+        }
+        catch (error) {
+            console.log("error occurrd on adding address");
+            throw error;
+        }
+    });
+}
+/*
+
+    Never insert user values directly inside the query and send it it leads to SQL injection because when doing this user value can be valid SQL query that postgress server will run and perform unecessay results.
+    
+    Always send user values inside it in form of $ syntax and then send the query to the postgress
+
+*/ 
